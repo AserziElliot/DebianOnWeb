@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debian Web GUI</title>
+    <script src="v86.js"></script>
+    <style>
+        body { 
+            background-color: #1e1e1e; 
+            color: #eee; 
+            font-family: sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #pila-web-vm {
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 4px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        /* Este es el contenedor donde v86 dibujará el escritorio */
+        #screen_container {
+            width: 1024px;
+            height: 768px;
+            background-color: #000;
+        }
+        canvas {
+            /* Asegura que el ratón del navegador coincida con el de la VM */
+            cursor: none; 
+        }
+        #loading_status {
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading_status">Iniciando sistema... (esto tardará)</div>
+    
+    <div id="pila-web-vm">
+        <div id="screen_container">
+            </div>
+    </div>
+
+    <script>
+        "use strict";
+
+        window.onload = function() {
+            var statusDiv = document.getElementById("loading_status");
+
+            // Configuración del emulador
+            var emulator = new V86Starter({
+                wasm_path: "v86.wasm",
+                
+                // IMPORTANTE: Para modo gráfico necesitas MUCHA más RAM.
+                // Usamos 1024 MB (1GB). Tu navegador debe permitírselo.
+                memory_size: 1024 * 1024 * 1024, 
+                
+                // Memoria de video virtual (256MB)
+                vga_memory_size: 256 * 1024 * 1024,
+                
+                // Contenedor donde se dibuja el gráfico
+                screen_container: document.getElementById("screen_container"),
+                
+                // Archivos BIOS necesarios (descárgalos del repo de v86)
+                bios: { url: "seabios.bin" },
+                vga_bios: { url: "vgabios.bin" },
+                
+                // --- LA IMAGEN DEL DISCO CON GUI ---
+                hda: {
+                    // Nota: Debes proveer una imagen que tenga Xorg y un escritorio instalados
+                    url: "debian-gui.img", 
+                    async: true 
+                },
+                
+                autostart: true,
+            });
+
+            // Escuchar eventos para cambiar el estado
+            emulator.add_listener("boot-order", function(e) {
+                statusDiv.innerText = "Cargando Linux Kernel...";
+            });
+
+            // Cuando la máquina virtual envía la primera imagen gráfica
+            emulator.add_listener("screen-put-char", function(e) {
+                if (statusDiv.innerText !== "Sistema Gráfico Activo") {
+                    statusDiv.innerText = "Sistema Gráfico Activo";
+                    statusDiv.style.color = "#4caf50";
+                }
+            });
+        };
+    </script>
+</body>
+</html>
